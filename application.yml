@@ -1,35 +1,49 @@
 source_list:
- # - SB
-   - OL
- # - CP
- # - ADDR
+  - SB
+  - OL
+  - CP
+  - ADDR
 
 SB:
   mysql_conf:
     dbtable: testdb.TRANSACTIONSYNC
     partition_column: App_Transaction_Id
-    query : "(select * from testdb.TRANSACTIONSYNC where Internal_Member_Id = 'PC7135361') as t"
-
 
 OL:
   sftp_conf:
-      filetype: csv
-      delimiter: |
-      directory: /home/ubuntu/data
-      filename: receipts_delta_GBR_14_10_2017.csv
+    filetype: csv
+    delimiter: |
+    directory: /home/ubuntu/data
+  filename: receipts_delta_GBR_14_10_2017.csv
+
 CP:
   s3_conf:
-    s3_bucket: vnagthane
-    filename: "/KC_Extract_1_20171009.csv"
+    s3_bucket: kishor.cstech1
+  filename: KC_Extract_1_20171009.csv
+
 ADDR:
   mongodb_config:
-    database: cust
+    database: customer
     collection: address
 
-s3_conf:
-  s3_bucket: vnagthane
-  staging_dir: pg_staging
+REGIS_DIM:
+    tableName: "DATAMART.REGIS_DIM"
+    sourceData:
+      - CP
+      - ADDR
+    loadingQuery: >
+                SELECT
+                   DISTINCT REGIS_CNSM_ID, CAST(REGIS_CTY_CODE AS SMALLINT), CAST(REGIS_ID AS INTEGER),
+                   REGIS_LTY_ID, REGIS_DATE, REGIS_CHANNEL, REGIS_GENDER, REGIS_CITY, INS_DT
+                FROM
+                  CP
+                WHERE
+                  INS_DT = CURRENT_DATE
 
+
+s3_conf:
+  s3_bucket: kishor.cstech1
+  staging_dir: pg_staging
 
 redshift_conf:
   filetype: csv

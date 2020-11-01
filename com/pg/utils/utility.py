@@ -1,7 +1,8 @@
-# write a function that take all necessary info, read data from mysql and return DF
+
+# write a function that takes all the necessary info, read data from mysql and return a dataframe
 def read_from_mysql(spark, app_secret, app_conf):
-    print("\n Reading Data from mysql DB")
-    jdbcParams = {"url : ut.get_mysql_jdbc_url(app_secret),"
+    print("\nReading data from MySQL DB,")
+    jdbcParams = {"url": get_mysql_jdbc_url(app_secret),
                   "lowerBound": "1",
                   "upperBound": "100",
                   "dbtable": app_conf["mysql_conf"]["dbtable"],
@@ -20,41 +21,41 @@ def read_from_mysql(spark, app_secret, app_conf):
     return df
 
 
+# write a function that takes all the necessary info, read data from sftp and return a dataframe
 def read_from_sftp(spark, app_secret, app_conf, pem_file_path):
-    def read_from_sftp(spark, app_secret, app_conf, pem_file_path):
-        df = spark.read \
-            .format("com.springml.spark.sftp") \
-            .option("host", app_secret["sftp_conf"]["hostname"]) \
-            .option("port", app_secret["sftp_conf"]["port"]) \
-            .option("username", app_secret["sftp_conf"]["username"]) \
-            .option("pem", pem_file_path) \
-            .option("fileType", "csv") \
-            .option("delimiter", "|") \
-            .load(app_conf["sftp_conf"]["directory"] + "/" + app_conf['filename'])
+    df = spark.read \
+        .format("com.springml.spark.sftp") \
+        .option("host", app_secret["sftp_conf"]["hostname"]) \
+        .option("port", app_secret["sftp_conf"]["port"]) \
+        .option("username", app_secret["sftp_conf"]["username"]) \
+        .option("pem", pem_file_path) \
+        .option("fileType", "csv") \
+        .option("delimiter", "|") \
+        .load(app_conf["sftp_conf"]["directory"] + "/" + app_conf['filename'])
 
-        return df
-
+    return df
 
 
-
+# write a function that takes all the necessary info, read data from mongodb and return a dataframe
 def read_from_s3(spark, app_conf):
-    print("\nReading data from S3")
     df = spark.read \
         .option("header", "true") \
         .option("delimiter", "|") \
         .format("csv") \
-        .load("s3a://" + app_conf["s3_conf"]["staging_dir"] + "/" + app_conf['filename'])
-
-
-def read_from_mongo(spark, app_conf):
-    print("\nReading data from MongoDB")
-    df = spark.read \
-        .format("com.mongodb.spark.sql.DefaultSource") \
-        .option("database", app_conf["mongodb_conf"]["database"]) \
-        .option("collection", app_conf["mongodb_conf"]["collection"]) \
-        .load()
+        .load("s3a://" + app_conf["s3_conf"]["s3_bucket"] + "/" + app_conf['filename'])
 
     return df
+
+
+# write a function that takes all the necessary info, read data from s3 and return a dataframe
+def read_from_mongo(spark, app_conf,app_secret):
+     df = spark.read \
+        .format("com.mongodb.spark.sql.DefaultSource") \
+        .option("database", app_conf["mongodb_config"]["database"]) \
+        .option("collection", app_conf["mongodb_config"]["collection"]) \
+        .load()
+
+     return df
 
 
 def get_redshift_jdbc_url(redshift_config: dict):
