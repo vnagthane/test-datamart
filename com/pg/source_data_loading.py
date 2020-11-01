@@ -14,8 +14,8 @@ if __name__ == "__main__":
     spark.sparkContext.setLogLevel('ERROR')
 
     current_dir = os.path.abspath(os.path.dirname(__file__))
-    app_config_path = os.path.abspath(current_dir + "/../../../../" + "application.yml")
-    app_secrets_path = os.path.abspath(current_dir + "/../../../../" + ".secrets")
+    app_config_path = os.path.abspath(current_dir + "/../../" + "application.yml")
+    app_secrets_path = os.path.abspath(current_dir + "/../../" + ".secrets")
 
     conf = open(app_config_path)
     app_conf = yaml.load(conf, Loader=yaml.FullLoader)
@@ -36,18 +36,18 @@ if __name__ == "__main__":
                 .withColumn('ins_dt', current_date())
 
             print("\n Loading to S3 Staging Area>>>>>>>>>>")
-            txnDf.write.partitionBy('ins_dt').parquet(app_conf["s3_conf"]["stagining_dir"] + src)
+            ol_txn_df.write.partitionBy("ins_dt").parquet(app_conf["s3_conf"]["s3_bucket"] + "/" +["staging_dir"] + src)
             txnDf.show()
 
         elif src == 'OL':
             print("\nReading data from sftp")
             ol_txn_df = ut.read_from_sftp(spark, app_secret, src_conf,
                                           os.path.abspath(
-                                              current_dir + "/../../../../" + app_secret["sftp_conf"]["pem"])) \
+                                              current_dir + "/../../" + app_secret["sftp_conf"]["pem"])) \
                 .ol_txn_df.withColumn("ins_dt", current_date())
 
             print("\nLoading to S3 Staging Area>>>>>>>>>>")
-            ol_txn_df.write.partitionBy("ins_dt").parquet(app_conf["s3_conf"]["staging_dir"] + src)
+            ol_txn_df.write.partitionBy("ins_dt").parquet(app_conf["s3_conf"]["s3_bucket"] + "/" +["staging_dir"] + src)
             ol_txn_df.show()
 
         elif src == 'ADDR':
@@ -67,4 +67,8 @@ if __name__ == "__main__":
             print("\nLoading to S3 Staging Area>>>>>>>>>>")
             cp_df.write \
                 .partitionBy("ins_dt") \
-                .parquet(app_conf["s3_conf"]["staging_dir"] + "/" + "CP")
+                    ol_txn_df.write.partitionBy("ins_dt").parquet(
+                        app_conf["s3_conf"]["s3_bucket"] + "/" + ["staging_dir"] + src)
+
+
+# spark-submit --packages "mysql:mysql-connector-java:8.0.15" dataframe/ingestion/others/systems/source_data_loading.py
