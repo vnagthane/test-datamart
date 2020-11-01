@@ -66,9 +66,8 @@ if __name__ == "__main__":
 
             print("\nLoading to S3 Staging Area>>>>>>>>>>")
             cp_df.write \
+                .mode("overwrite") \
                 .partitionBy("ins_dt") \
-                    ol_txn_df.write.partitionBy("ins_dt").parquet(
-                        app_conf["s3_conf"]["s3_bucket"] + "/" + ["staging_dir"] + src)
-
-
+                .parquet("s3a://" + app_conf["s3_conf"]["s3_bucket"] + app_conf["s3_conf"]["staging_dir"] + + "/" + src)
+            print("Load data from CP : S3 bucket")
 # spark-submit --packages "mysql:mysql-connector-java:8.0.15" dataframe/ingestion/others/systems/source_data_loading.py
