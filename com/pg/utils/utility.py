@@ -21,18 +21,20 @@ def read_from_mysql(spark, app_secret, app_conf):
 
 
 def read_from_sftp(spark, app_secret, app_conf, pem_file_path):
-    print("\nReading data from SFTP")
-    df = spark.read \
-        .format("com.springml.spark.sftp") \
-        .option("host", app_secret["sftp_conf"]["hostname"]) \
-        .option("port", app_secret["sftp_conf"]["port"]) \
-        .option("username", app_secret["sftp_conf"]["username"]) \
-        .option("pem", pem_file_path) \
-        .option("fileType", "csv") \
-        .option("delimiter", "|") \
-        .load(app_conf["sftp_conf"]["directory"] + "/" + app_conf['filename'])
+    def read_from_sftp(spark, app_secret, app_conf, pem_file_path):
+        df = spark.read \
+            .format("com.springml.spark.sftp") \
+            .option("host", app_secret["sftp_conf"]["hostname"]) \
+            .option("port", app_secret["sftp_conf"]["port"]) \
+            .option("username", app_secret["sftp_conf"]["username"]) \
+            .option("pem", pem_file_path) \
+            .option("fileType", "csv") \
+            .option("delimiter", "|") \
+            .load(app_conf["sftp_conf"]["directory"] + "/" + app_conf['filename'])
 
-    return df
+        return df
+
+
 
 
 def read_from_s3(spark, app_conf):

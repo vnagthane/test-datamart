@@ -1,73 +1,74 @@
-from pyspark.sql import SparkSession
-import yaml
-import os.path
-import com.pg.utils.utility as ut
 
-from pyspark.sql.functions import current_date
+# write a function that takes all the necessary info, read data from mysql and return a dataframe
+def read_from_mysql(spark, app_secret, app_conf):
+    print("\nReading data from MySQL DB,")
+    jdbcParams = {"url": get_mysql_jdbc_url(app_secret),
+                  "lowerBound": "1",
+                  "upperBound": "100",
+                  "dbtable": app_conf["mysql_conf"]["dbtable"],
+                  "numPartitions": "2",
+                  "partitionColumn": app_conf["mysql_conf"]["partition_column"],
+                  "user": app_secret["mysql_conf"]["username"],
+                  "password": app_secret["mysql_conf"]["password"]
+                  }
 
-if __name__ == "__main__":
-    spark = SparkSession \
-        .builder \
-        .appName("Data Ingestion") \
-        .master("local[*]") \
-        .getOrCreate()
-    spark.sparkContext.setLogLevel('ERROR')
+    df = spark \
+        .read.format("jdbc") \
+        .option("driver", "com.mysql.cj.jdbc.Driver") \
+        .options(**jdbcParams) \
+        .load()
 
-    current_dir = os.path.abspath(os.path.dirname(__file__))
-    app_config_path = os.path.abspath(current_dir + "/../../" + "application.yml")
-    app_secrets_path = os.path.abspath(current_dir + "/../../" + ".secrets")
+    return df
 
-    conf = open(app_config_path)
-    app_conf = yaml.load(conf, Loader=yaml.FullLoader)
-    secret = open(app_secrets_path)
-    app_secret = yaml.load(secret, Loader=yaml.FullLoader)
 
-    hadoop_conf = spark.sparkContext._jsc.hadoopConfiguration()
-    hadoop_conf.set("fs.s3a.access.key", app_secret["s3_conf"]["access_key"])
-    hadoop_conf.set("fs.s3a.secret.key", app_secret["s3_conf"]["secret_access_key"])
+# write a function that takes all the necessary info, read data from sftp and return a dataframe
+def read_from_sftp(spark, app_secret, app_conf, pem_file_path):
+    df = spark.read \
+        .format("com.springml.spark.sftp") \
+        .option("host", app_secret["sftp_conf"]["hostname"]) \
+        .option("port", app_secret["sftp_conf"]["port"]) \
+        .option("username", app_secret["sftp_conf"]["username"]) \
+        .option("pem", pem_file_path) \
+        .option("fileType", "csv") \
+        .option("delimiter", "|") \
+        .load(app_conf["sftp_conf"]["directory"] + "/" + app_conf['filename'])
 
-    src_list = app_conf['source_list']
+    return df
 
-    for src in src_list:
-        src_conf = app_conf[src]
-        if src == 'SB':
-            print("\nReading data from mysql")
-            txnDf = ut.read_from_mysql(spark, app_secret, src_conf) \
-                .withColumn('ins_dt', current_date())
 
-            print("\n Loading to S3 Staging Area>>>>>>>>>>")
-            ol_txn_df.write.partitionBy("ins_dt").parquet(app_conf["s3_conf"]["s3_bucket"] + "/" +["staging_dir"] + src)
-            txnDf.show()
+# write a function that takes all the necessary info, read data from mongodb and return a dataframe
+def read_from_s3(spark, app_conf):
+    df = spark.read \
+        .option("header", "true") \
+        .option("delimiter", "|") \
+        .format("csv") \
+        .load("s3a://" + app_conf["s3_conf"]["s3_bucket"] + "/" + app_conf['filename'])
 
-        elif src == 'OL':
-            print("\nReading data from sftp")
-            ol_txn_df = ut.read_from_sftp(spark, app_secret, src_conf,
-                                          os.path.abspath(
-                                              current_dir + "/../../" + app_secret["sftp_conf"]["pem"])) \
-                .ol_txn_df.withColumn("ins_dt", current_date())
+    return df
 
-            print("\nLoading to S3 Staging Area>>>>>>>>>>")
-            ol_txn_df.write.partitionBy("ins_dt").parquet(app_conf["s3_conf"]["s3_bucket"] + "/" +["staging_dir"] + src)
-            ol_txn_df.show()
 
-        elif src == 'ADDR':
-            print("\nReading data from mongoDB")
-            cust_addr_df = ut.read_from_mongo(spark, app_secret, src_conf) \
-                .withColumn("ins_dt", current_date())
+# write a function that takes all the necessary info, read data from s3 and return a dataframe
+def read_from_mongo(spark, app_conf,app_secret):
+     df = spark.read \
+        .format("com.mongodb.spark.sql.DefaultSource") \
+        .option("database", app_conf["mongodb_config"]["database"]) \
+        .option("collection", app_conf["mongodb_config"]["collection"]) \
+        .load()
 
-            print("\nLoading to S3 Staging Area>>>>>>>>>>")
-            cust_addr_df.write.partitionBy("ins_dt").parquet(app_conf["s3_conf"]["staging_dir"] + src)
-            cust_addr_df.show(5, False)
+     return df
 
-        elif src == 'CP':
-            print("\nReading data from S3")
-            cp_df = ut.read_from_s3(spark, src_conf) \
-                .withColumn("ins_dt", current_date())
 
-            print("\nLoading to S3 Staging Area>>>>>>>>>>")
-            cp_df.write \
-                .mode("overwrite") \
-                .partitionBy("ins_dt") \
-                .parquet("s3a://" + app_conf["s3_conf"]["s3_bucket"] + app_conf["s3_conf"]["staging_dir"] + + "/" + src)
-            print("Load data from CP : S3 bucket")
-# spark-submit --packages "mysql:mysql-connector-java:8.0.15" dataframe/ingestion/others/systems/source_data_loading.py
+def get_redshift_jdbc_url(redshift_config: dict):
+    host = redshift_config["redshift_conf"]["host"]
+    port = redshift_config["redshift_conf"]["port"]
+    database = redshift_config["redshift_conf"]["database"]
+    username = redshift_config["redshift_conf"]["username"]
+    password = redshift_config["redshift_conf"]["password"]
+    return "jdbc:redshift://{}:{}/{}?user={}&password={}".format(host, port, database, username, password)
+
+
+def get_mysql_jdbc_url(mysql_config: dict):
+    host = mysql_config["mysql_conf"]["hostname"]
+    port = mysql_config["mysql_conf"]["port"]
+    database = mysql_config["mysql_conf"]["database"]
+    return "jdbc:mysql://{}:{}/{}?autoReconnect=true&useSSL=false".format(host, port, database)
