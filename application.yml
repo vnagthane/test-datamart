@@ -4,6 +4,10 @@ source_list:
   - CP
   - ADDR
 
+target_list:
+  - REGIS_DIM
+  - CHILD_DIM
+
 SB:
   mysql_conf:
     dbtable: testdb.TRANSACTIONSYNC
@@ -18,7 +22,7 @@ OL:
 
 CP:
   s3_conf:
-    s3_bucket: kishor.cstech1
+    s3_bucket: vnagthane
   filename: KC_Extract_1_20171009.csv
 
 ADDR:
@@ -32,17 +36,22 @@ REGIS_DIM:
       - CP
       - ADDR
     loadingQuery: >
-                SELECT
-                   DISTINCT REGIS_CNSM_ID, CAST(REGIS_CTY_CODE AS SMALLINT), CAST(REGIS_ID AS INTEGER),
-                   REGIS_LTY_ID, REGIS_DATE, REGIS_CHANNEL, REGIS_GENDER, REGIS_CITY, INS_DT
-                FROM
-                  CP
-                WHERE
-                  INS_DT = CURRENT_DATE
+        SELECT
+            REGIS_CNSM_ID AS CNSM_ID, REGIS_CTY_CODE AS CTY_CODE,
+            REGIS_ID, REGIS_DATE, REGIS_LTY_ID AS LTY_ID, REGIS_CHANNEL, REGIS_GENDER, REGIS_CITY, INS_DT
+        FROM
+            (SELECT
+                DISTINCT a.REGIS_CNSM_ID, CAST(a.REGIS_CTY_CODE AS SMALLINT), CAST(a.REGIS_ID AS INTEGER),
+                a.REGIS_LTY_ID, a.REGIS_DATE, a.REGIS_CHANNEL, a.REGIS_GENDER, a.REGIS_CITY,
+                b.state, b.city, b.street, a.ins_dt
+            FROM
+                CP a join ADDR b
+                    on a.REGIS_CNSM_ID=b.consumer_id
+            ) cp
 
 
 s3_conf:
-  s3_bucket: kishor.cstech1
+  s3_bucket: vnagthane
   staging_dir: pg_staging
 
 redshift_conf:

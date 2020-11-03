@@ -4,8 +4,9 @@ import yaml
 import os.path
 import com.pg.utils.utility as ut
 
-if __name__ == "__main__":
-    current_dir = os.path(os.path.dirname(__file__))
+if __name__ == '__main__':
+
+    current_dir = os.path.abspath(os.path.dirname(__file__))
     app_config_path = os.path.abspath(current_dir + "/../../" + "application.yml")
     app_secrets_path = os.path.abspath(current_dir + "/../../" + ".secrets")
 
@@ -14,51 +15,31 @@ if __name__ == "__main__":
     secret = open(app_secrets_path)
     app_secret = yaml.load(secret, Loader=yaml.FullLoader)
 
+    # Create the SparkSession
     spark = SparkSession \
         .builder \
-        .appName("Ingestion from enterprise applications") \
-        .config("spark.mongodb.input.uri", app_secrets_path) \
+        .appName("Read ingestion enterprise applications") \
+        .config("spark.mongodb.input.uri", app_secret["mongodb_config"]["uri"])\
         .getOrCreate()
     spark.sparkContext.setLogLevel('ERROR')
 
-    hadoop_conf = spark.sparkContext._jsc.hadoopConfiguration()
-    hadoop_conf.set("fs.s3a.access.key", app_secret["s3_conf"]["access_key"])
-    hadoop_conf.set("fs.s3a.secret.key", app_secret["s3_conf"]["secret_access_key"])
+    tgt_list = app_conf['target_list']
 
-    print("\n Data Loading from CP : S3")
-    cp_file_path = "s3a://" + app_conf["s3_conf"]["s3_bucket"] + "/" + app_conf["s3_conf"]["staging_dir"] + "/" + "CP"
-    cp_df = spark.sql("select * from parquet.`{}`".format(cp_file_path))
-    cp_df.createOrReplaceTempView("CustomerPortal")
+    for tgt in tgt_list:
+        tgt_conf = app_conf[tgt]
 
-    spark.sql("""SELECT DISTINCT REGIS_CNSM_ID, CAST(REGIS_CTY_CODE AS SMALLINT), CAST(REGIS_ID AS INTEGER),
-                       REGIS_LTY_ID, REGIS_DATE, REGIS_CHANNEL, REGIS_GENDER, REGIS_CITY, INS_DT
-                        FROM
-                      CustomerPortal
-                    WHERE
-                      INS_DT = CURRENT_DATE """) \
-        .show(5, False)
+        if tgt == 'REGIS_DIM':
+            src_list = tgt_conf['sourceData']
+            for src in src_list:
+                file_path = "s3a://" + app_conf["s3_conf"]["s3_bucket"] + "/" + app_conf["s3_conf"]["staging_dir"] + "/" + src
+                src_df = spark.sql("select * from parquet.`{}`".format(file_path))
+                src_df.printSchema()
+                src_df.show(5, False)
+                src_df.createOrReplaceTempView(src)
 
-    print("\n Data Loading from ADDR : S3")
-    cp_file_path = "s3a://" + app_conf["s3_conf"]["s3_bucket"] + "/" + app_conf["s3_conf"]["staging_dir"] + "/" + "ADDR"
-    cp_df = spark.sql("select * from parquet.`{}`".format(cp_file_path))
-    cp_df.createOrReplaceTempView("CustomerAddress")
+            print("REGIS_DIM")
 
-    spark.sql("""
-    SELECT 
-        DISTINCT consumer_id,'mobile-no' ,state    ,city     ,street,ins_dt
-        FROM
-        CustomerAddress
-        WHERE
-         INS_DT = CURRENT_DATE""") \
-        .show(5, False)
+            regis_dim = spark.sql(app_conf["REGIS_DIM"]["loadingQuery"])
+            regis_dim.show(5, False)
 
-    print("\n Customer's data with Address")
-    spark.sql("""
-        SELECT 
-                   DISTINCT a.REGIS_CNSM_ID, CAST(a.REGIS_CTY_CODE AS SMALLINT), CAST(a.REGIS_ID AS INTEGER),
-                    b.state, b.city,
-                   b.street,b.ins_dt
-                FROM
-                  CustomerPortal a join CustomerAddress b
-                  on (a.REGIS_ID=b.REGIS_ID) """) \
-        .show(5, False)
+# spark-submit --packages "org.apache.hadoop:hadoop-aws:2.7.4" com/pg/target_data_loading.py
