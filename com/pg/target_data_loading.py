@@ -3,6 +3,7 @@ from pyspark.sql.functions import *
 import yaml
 import os.path
 import com.pg.utils.utility as ut
+import uuid
 
 if __name__ == '__main__':
 
@@ -19,11 +20,22 @@ if __name__ == '__main__':
     spark = SparkSession \
         .builder \
         .appName("Read ingestion enterprise applications") \
-        .config("spark.mongodb.input.uri", app_secret["mongodb_config"]["uri"])\
+        .config("spark.mongodb.input.uri", app_secret["mongodb_config"]["uri"]) \
         .getOrCreate()
     spark.sparkContext.setLogLevel('ERROR')
 
     tgt_list = app_conf['target_list']
+
+
+
+
+    def FN_UUID():
+        uid = uuid.uuid1()
+        return uid
+
+
+    FN_UUID = spark.udf \
+        .register("FN_UUID", FN_UUID, StringType())
 
     for tgt in tgt_list:
         tgt_conf = app_conf[tgt]
@@ -31,7 +43,8 @@ if __name__ == '__main__':
         if tgt == 'REGIS_DIM':
             src_list = tgt_conf['sourceData']
             for src in src_list:
-                file_path = "s3a://" + app_conf["s3_conf"]["s3_bucket"] + "/" + app_conf["s3_conf"]["staging_dir"] + "/" + src
+                file_path = "s3a://" + app_conf["s3_conf"]["s3_bucket"] + "/" + app_conf["s3_conf"][
+                    "staging_dir"] + "/" + src
                 src_df = spark.sql("select * from parquet.`{}`".format(file_path))
                 src_df.printSchema()
                 src_df.show(5, False)
@@ -41,5 +54,6 @@ if __name__ == '__main__':
 
             regis_dim = spark.sql(app_conf["REGIS_DIM"]["loadingQuery"])
             regis_dim.show(5, False)
+
 
 # spark-submit --packages "org.apache.hadoop:hadoop-aws:2.7.4" com/pg/target_data_loading.py
