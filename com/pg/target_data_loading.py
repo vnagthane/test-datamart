@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
+from pyspark.sql.types import *
 import yaml
 import os.path
 import com.pg.utils.utility as ut
@@ -25,9 +26,6 @@ if __name__ == '__main__':
     spark.sparkContext.setLogLevel('ERROR')
 
     tgt_list = app_conf['target_list']
-
-
-
 
     def FN_UUID():
         uid = uuid.uuid1()
