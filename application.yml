@@ -95,7 +95,7 @@ RTL_TXN_FACT:
            TXN.INS_DT = '2020-11-02'
                   AND (REC.ins_dt = '2020-11-02' OR REC.ins_dt is NULL )
 s3_conf:
-  s3_bucket: kishor.cstech1
+  s3_bucket: vnagthane
   staging_dir: pg_staging
 
 redshift_conf:
