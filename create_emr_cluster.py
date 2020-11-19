@@ -14,8 +14,8 @@ def lambda_handler(event, context):
         'KeepJobFlowAliveWhenNoSteps': True,
         'TerminationProtected': False,
         'Ec2SubnetId': 'subnet-b51b2fd3',
-        'EmrManagedMasterSecurityGroup': 'sg-0f7a18e1628c19fef',
-        'EmrManagedSlaveSecurityGroup':  'sg-0b510e30decd3fc92'
+        'EmrManagedMasterSecurityGroup': 'sg-00e712ec1b09f676e',
+        'EmrManagedSlaveSecurityGroup':  'sg-0e9ebbfd18d0669a8'
     }
 
     configurations = [
@@ -41,7 +41,7 @@ def lambda_handler(event, context):
 
     response = client.run_job_flow(
         Name='PySpark Cluster',
-        LogUri='s3://vnagthane/emr-logs',
+        LogUri='s3://aws-logs-788660014500-eu-west-1/emr-logs',
         ReleaseLabel='emr-5.30.0',
         Instances=instances,
         Configurations=configurations,
